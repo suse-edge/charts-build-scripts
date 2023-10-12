@@ -257,16 +257,21 @@ func UpdateHelmMetadataWithDependencies(fs billy.Filesystem, mainHelmChartPath s
 		for _, d := range chart.Metadata.Dependencies {
 			if d.Name == dependencyName {
 				d.Repository = fmt.Sprintf("file://./charts/%s", dependencyName)
-				d.Version = "" // Local chart archives don't need a version
 				found = true
 			}
 		}
 		if !found {
+			componentChart, err := helmLoader.Load(filesystem.GetAbsPath(fs, fmt.Sprintf("../%s/charts", dependencyName)))
+			if err != nil {
+				return err
+			}
+			componentVersion := componentChart.Metadata.Version
+
 			// Dependency does not exist, so we add it to the list
 			d := &helmChart.Dependency{
 				Name:       dependencyName,
 				Condition:  fmt.Sprintf("%s.enabled", dependencyName),
-				Version:    "", // Local chart archives don't need a version
+				Version:    componentVersion,
 				Repository: fmt.Sprintf("file://./charts/%s", dependencyName),
 			}
 			chart.Metadata.Dependencies = append(chart.Metadata.Dependencies, d)
